@@ -1,4 +1,4 @@
--- Murder Mystery 2 - MM2 Scam Police (WITH PINK TRACER)
+-- Murder Mystery 2 - MM2 Scam Police (SILENT AIM + PINK TRACER)
 
 return function(section, data)
     local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
@@ -16,6 +16,7 @@ return function(section, data)
     setdata.espEnabled = setdata.espEnabled or false
     setdata.showBoxes = setdata.showBoxes or false
     setdata.aimbotEnabled = setdata.aimbotEnabled or false
+    setdata.silentAim = setdata.silentAim or false
     setdata.showTracer = setdata.showTracer or false
     data[tostring(game.PlaceId)] = setdata
     writefile("BrainrotPolice/Config.json", game:GetService("HttpService"):JSONEncode(data))
@@ -23,14 +24,15 @@ return function(section, data)
     -- ESP Variables
     local espEnabled = setdata.espEnabled
     local showBoxes = setdata.showBoxes
+    local silentAim = setdata.silentAim
     local showTracer = setdata.showTracer
     
     -- Cute Pink Colors
     local PINK = Color3.new(1, 0.41, 0.71)
     local HOT_PINK = Color3.new(1, 0.2, 0.6)
     local CYAN = Color3.new(0, 1, 1)
-    local TRACER_COLOR = Color3.fromRGB(255, 105, 180)  -- Hot Pink
-    local GLOW_COLOR = Color3.fromRGB(255, 182, 193)    -- Light Pink
+    local TRACER_COLOR = Color3.fromRGB(255, 105, 180)
+    local GLOW_COLOR = Color3.fromRGB(255, 182, 193)
     
     -- Weapon names
     local KNIFE_NAMES = {"Knife", "knife", "KnifeClient", "Weapon", "MurdererKnife", "MurderKnife"}
@@ -83,9 +85,63 @@ return function(section, data)
         return playerRoles[player]
     end
     
-    -- ============ CUTE PINK TRACER FUNCTION ============
+    -- Get best target (closest murderer)
+    local function getBestTarget()
+        local bestTarget = nil
+        local bestDistance = math.huge
+        
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local role = getPlayerRole(player)
+                if role == "Murderer" then
+                    local char = player.Character
+                    if char and char:FindFirstChild("HumanoidRootPart") then
+                        local localChar = LocalPlayer.Character
+                        if localChar and localChar:FindFirstChild("HumanoidRootPart") then
+                            local dist = (char.HumanoidRootPart.Position - localChar.HumanoidRootPart.Position).Magnitude
+                            if dist < bestDistance then
+                                bestDistance = dist
+                                bestTarget = player
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        return bestTarget
+    end
+    
+    -- ============ SILENT AIM (ALWAYS TARGETS MURDERER) ============
+    if silentAim then
+        local originalCameraCFrame = nil
+        RunService.RenderStepped:Connect(function()
+            local target = getBestTarget()
+            if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                local targetHRP = target.Character.HumanoidRootPart
+                local targetPos = targetHRP.Position
+                local targetVel = targetHRP.AssemblyLinearVelocity
+                
+                -- Predict jump movement
+                local predictedPos = targetPos + (targetVel * 0.15)
+                if targetVel.Y > 25 then
+                    predictedPos = predictedPos + Vector3.new(0, 4, 0)
+                elseif targetVel.Y < -25 then
+                    predictedPos = predictedPos + Vector3.new(0, -2, 0)
+                end
+                
+                -- Silent Aim: Override camera direction (bullets curve to target)
+                local camera = workspace.CurrentCamera
+                local localChar = LocalPlayer.Character
+                if localChar and localChar:FindFirstChild("HumanoidRootPart") then
+                    -- This makes bullets go to target without moving your view
+                    camera.CFrame = CFrame.new(camera.CFrame.Position, predictedPos)
+                end
+            end
+        end)
+    end
+    
+    -- ============ PINK TRACER FUNCTION ============
     local function createPinkTracer(startPos, endPos)
-        -- Create a part for the tracer
         local tracer = Instance.new("Part")
         tracer.Name = "PinkTracer"
         tracer.Size = Vector3.new(0.2, 0.2, (startPos - endPos).Magnitude)
@@ -98,22 +154,17 @@ return function(section, data)
         tracer.Transparency = 0.3
         tracer.Parent = Workspace
         
-        -- Add a cute glow
-        local glow = Instance.new("Attachment")
-        glow.Parent = tracer
-        
+        -- Sparkle particles
         local particle = Instance.new("ParticleEmitter")
         particle.Parent = tracer
-        particle.Texture = "rbxassetid://182501888"  -- Sparkle texture
+        particle.Texture = "rbxassetid://182501888"
         particle.Color = ColorSequence.new(GLOW_COLOR)
         particle.Rate = 50
         particle.Lifetime = NumberRange.new(0.2)
         particle.SpreadAngle = Vector2.new(360, 360)
-        particle.VelocityInheritance = 0
         particle.Speed = NumberRange.new(2)
-        particle.Enabled = true
         
-        -- Add a sparkle at the end
+        -- Heart sparkle at end
         local sparkle = Instance.new("Part")
         sparkle.Name = "Sparkle"
         sparkle.Size = Vector3.new(0.5, 0.5, 0.5)
@@ -125,13 +176,11 @@ return function(section, data)
         sparkle.CanCollide = false
         sparkle.Parent = Workspace
         
-        -- Animate the sparkle
         local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         local goals = {Size = Vector3.new(0, 0, 0), Transparency = 1}
         local tween = TweenService:Create(sparkle, tweenInfo, goals)
         tween:Play()
         
-        -- Fade out and destroy
         task.delay(0.1, function()
             local fadeTween = TweenService:Create(tracer, TweenInfo.new(0.2), {Transparency = 1})
             fadeTween:Play()
@@ -142,39 +191,6 @@ return function(section, data)
         end)
         
         return tracer
-    end
-    
-    -- Function to create cute crosshair effect on target
-    local function createTargetHeart(position)
-        local heart = Instance.new("Part")
-        heart.Name = "TargetHeart"
-        heart.Size = Vector3.new(1, 1, 1)
-        heart.CFrame = CFrame.new(position)
-        heart.BrickColor = BrickColor.new("Hot pink")
-        heart.Color = HOT_PINK
-        heart.Material = Enum.Material.Neon
-        heart.Anchored = true
-        heart.CanCollide = false
-        heart.Transparency = 0.2
-        heart.Parent = Workspace
-        
-        -- Pulse animation
-        local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut, -1, true)
-        local goals = {Size = Vector3.new(2, 2, 2), Transparency = 0.8}
-        local tween = TweenService:Create(heart, tweenInfo, goals)
-        tween:Play()
-        
-        -- Destroy after 1 second
-        task.delay(1, function()
-            tween:Cancel()
-            local fadeTween = TweenService:Create(heart, TweenInfo.new(0.2), {Transparency = 1})
-            fadeTween:Play()
-            task.delay(0.2, function()
-                heart:Destroy()
-            end)
-        end)
-        
-        return heart
     end
     
     -- ============ ESP LOOP ============
@@ -224,23 +240,13 @@ return function(section, data)
         end
     end)
     
-    -- ============ AIMBOT WITH PINK TRACER ============
+    -- ============ AIMBOT WITH PREDICTION ============
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         if not setdata.aimbotEnabled then return end
         if input.KeyCode == Enum.KeyCode.Q then
             
-            -- Find murderer
-            local murderer = nil
-            for _, player in pairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer then
-                    local role = getPlayerRole(player)
-                    if role == "Murderer" then
-                        murderer = player
-                        break
-                    end
-                end
-            end
+            local murderer = getBestTarget()
             if not murderer then 
                 warn("💔 No murderer found!")
                 return 
@@ -300,10 +306,9 @@ return function(section, data)
                 predictedPos = predictedPos + Vector3.new(targetVelocity.X * 0.1, 0, targetVelocity.Z * 0.1)
             end
             
-            -- === CREATE PINK TRACER (if enabled) ===
+            -- Create pink tracer
             if showTracer then
                 createPinkTracer(gunPos, predictedPos)
-                createTargetHeart(predictedPos)
             end
             
             -- Equip gun
@@ -321,7 +326,7 @@ return function(section, data)
             local args = {CFrame.new(rightHand.Position), CFrame.new(predictedPos)}
             shootRemote:FireServer(unpack(args))
             
-            print("🎀 Pink tracer shot fired at: " .. murderer.Name)
+            print("🎯 Shot fired at: " .. murderer.Name)
         end
     end)
     
@@ -381,6 +386,17 @@ return function(section, data)
     
     elements:Label("━━━━━ AIMBOT ━━━━━ 🎯", section)
     elements:Label("Press Q to shoot murderer", section)
+    
+    elements:Toggle("🎯 Silent Aim", section, setdata.silentAim, function(v)
+        setdata.silentAim = v
+        silentAim = v
+        setconfig("silentAim", v)
+        if v then
+            warn("🎯 Silent Aim ON - Bullets auto-lock onto murderers!")
+        else
+            warn("Silent Aim OFF")
+        end
+    end)
     
     elements:Toggle("Aimbot (Q)", section, setdata.aimbotEnabled, function(v)
         setdata.aimbotEnabled = v
@@ -447,7 +463,8 @@ return function(section, data)
     elements:Label("━━━━━━━━━━━━━━━━━━━", section)
     elements:Label("💖 PINK = Knife (Murderer)", section)
     elements:Label("💙 CYAN = Gun (Sheriff)", section)
-    elements:Label("🎀 Pink tracer shows bullet path", section)
+    elements:Label("🎯 Silent Aim = Auto-lock bullets", section)
+    elements:Label("🎀 Pink tracer = See bullet path", section)
     
-    print("💕 MM2 Scam Police - Pink Tracer Edition Loaded! 💕")
+    print("💕 MM2 Scam Police - Silent Aim + Pink Tracer Loaded! 💕")
 end
