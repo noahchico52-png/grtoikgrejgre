@@ -1,4 +1,4 @@
--- Murder Mystery 2 - MM2 Scam Police (FIXED ESP)
+-- Murder Mystery 2 - MM2 Scam Police (WITH SILENT AIM)
 
 return function(section, data)
     local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
@@ -15,33 +15,29 @@ return function(section, data)
     setdata.espEnabled = setdata.espEnabled or false
     setdata.showBoxes = setdata.showBoxes or false
     setdata.aimbotEnabled = setdata.aimbotEnabled or false
+    setdata.silentAim = setdata.silentAim or false
     data[tostring(game.PlaceId)] = setdata
     writefile("BrainrotPolice/Config.json", game:GetService("HttpService"):JSONEncode(data))
     
     -- ESP Variables
     local espEnabled = setdata.espEnabled
     local showBoxes = setdata.showBoxes
+    local silentAim = setdata.silentAim
     
     -- Colors
-    local MURDER_COLOR = Color3.fromRGB(255, 50, 50)  -- Red for Murderer
-    local SHERIFF_COLOR = Color3.fromRGB(50, 150, 255) -- Blue for Sheriff
-    local INNOCENT_COLOR = Color3.fromRGB(100, 100, 100) -- Gray for Innocent
+    local MURDER_COLOR = Color3.fromRGB(255, 50, 50)
+    local SHERIFF_COLOR = Color3.fromRGB(50, 150, 255)
     
-    -- Weapon name lists (covers all possible names)
-    local KNIFE_NAMES = {
-        "Knife", "knife", "KnifeClient", "Weapon",
-        "MurdererKnife", "MurderKnife", "Dagger"
-    }
+    -- Weapon names
+    local KNIFE_NAMES = {"Knife", "knife", "KnifeClient", "Weapon", "MurdererKnife", "MurderKnife"}
+    local GUN_NAMES = {"Gun", "gun", "GunClient", "Revolver", "SheriffGun", "SheriffRevolver", "Pistol"}
     
-    local GUN_NAMES = {
-        "Gun", "gun", "GunClient", "Revolver",
-        "SheriffGun", "SheriffRevolver", "Pistol",
-        "GunDrop", "RevolverDrop"
-    }
+    -- Cache system to prevent flickering
+    local playerRoles = {}
+    local lastUpdateTime = {}
+    local espBoxes = {}
     
-    -- Helper function to check if player has a weapon
     local function playerHasWeapon(player, weaponNames)
-        -- Check character
         local char = player.Character
         if char then
             for _, weaponName in ipairs(weaponNames) do
@@ -51,7 +47,6 @@ return function(section, data)
             end
         end
         
-        -- Check backpack
         local backpack = player:FindFirstChild("Backpack")
         if backpack then
             for _, weaponName in ipairs(weaponNames) do
@@ -64,178 +59,263 @@ return function(section, data)
         return false
     end
     
-    -- Function to get player role
     local function getPlayerRole(player)
+        local now = tick()
+        local lastUpdate = lastUpdateTime[player] or 0
+        
+        if now - lastUpdate < 0.5 then
+            return playerRoles[player] or "Innocent"
+        end
+        
+        lastUpdateTime[player] = now
+        
         if playerHasWeapon(player, KNIFE_NAMES) then
-            return "Murderer"
+            playerRoles[player] = "Murderer"
         elseif playerHasWeapon(player, GUN_NAMES) then
-            return "Sheriff"
+            playerRoles[player] = "Sheriff"
         else
-            return "Innocent"
+            playerRoles[player] = "Innocent"
         end
+        
+        return playerRoles[player]
     end
     
-    -- Get color for role
-    local function getRoleColor(role)
-        if role == "Murderer" then
-            return MURDER_COLOR
-        elseif role == "Sheriff" then
-            return SHERIFF_COLOR
-        else
-            return INNOCENT_COLOR
-        end
-    end
-    
-    -- Store highlights in a folder
-    local espFolder = Instance.new("Folder")
-    espFolder.Name = "MM2_ESP_Highlights"
-    espFolder.Parent = game:GetService("CoreGui")
-    
-    -- Clean up old highlights
-    local function cleanupHighlights()
-        for _, child in pairs(espFolder:GetChildren()) do
-            if child:IsA("Highlight") then
-                child:Destroy()
+    -- ESP Update
+    local function updateESPBox(player)
+        if not espEnabled or not showBoxes then 
+            if espBoxes[player] then
+                espBoxes[player]:Destroy()
+                espBoxes[player] = nil
             end
+            return 
         end
-    end
-    
-    -- Update ESP for a player
-    local function updateESP(player)
+        
         local char = player.Character
-        if not char then return end
-        
-        local highlight = espFolder:FindFirstChild(player.Name .. "_ESP")
-        
-        if espEnabled and showBoxes then
-            local role = getPlayerRole(player)
-            local color = getRoleColor(role)
-            
-            if not highlight then
-                highlight = Instance.new("Highlight")
-                highlight.Name = player.Name .. "_ESP"
-                highlight.FillTransparency = 0.6
-                highlight.OutlineTransparency = 0.2
-                highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                highlight.Parent = espFolder
+        if not char or not char:FindFirstChild("HumanoidRootPart") then
+            if espBoxes[player] then
+                espBoxes[player]:Destroy()
+                espBoxes[player] = nil
             end
-            
-            highlight.Adornee = char
-            highlight.FillColor = color
-            highlight.OutlineColor = color
-            highlight.Enabled = true
-        else
-            if highlight then
-                highlight:Destroy()
+            return
+        end
+        
+        local role = getPlayerRole(player)
+        local color = (role == "Murderer" and MURDER_COLOR) or (role == "Sheriff" and SHERIFF_COLOR) or nil
+        
+        if not color then
+            if espBoxes[player] then
+                espBoxes[player]:Destroy()
+                espBoxes[player] = nil
             end
+            return
+        end
+        
+        if not espBoxes[player] then
+            local box = Instance.new("BoxHandleAdornment")
+            box.Name = player.Name .. "_ESP"
+            box.Adornee = char
+            box.Size = Vector3.new(4, 5, 2)
+            box.Color3 = color
+            box.Transparency = 0.5
+            box.ZIndex = 10
+            box.AlwaysOnTop = true
+            box.Parent = char
+            
+            local nameTag = Instance.new("BillboardGui")
+            nameTag.Name = "ESP_Name"
+            nameTag.Size = UDim2.new(0, 100, 0, 30)
+            nameTag.StudsOffset = Vector3.new(0, 2.5, 0)
+            nameTag.AlwaysOnTop = true
+            nameTag.Parent = char
+            
+            local nameLabel = Instance.new("TextLabel")
+            nameLabel.Size = UDim2.new(1, 0, 1, 0)
+            nameLabel.BackgroundTransparency = 1
+            nameLabel.Text = player.Name .. " (" .. role .. ")"
+            nameLabel.TextColor3 = color
+            nameLabel.TextScaled = true
+            nameLabel.Font = Enum.Font.GothamBold
+            nameLabel.Parent = nameTag
+            
+            espBoxes[player] = {box = box, tag = nameTag}
         end
     end
     
-    -- ESP Loop with better detection
+    local function cleanupAllESP()
+        for player, boxData in pairs(espBoxes) do
+            if boxData.box then boxData.box:Destroy() end
+            if boxData.tag then boxData.tag:Destroy() end
+        end
+        espBoxes = {}
+    end
+    
+    -- ESP Loop
     task.spawn(function()
         while true do
             if espEnabled and showBoxes then
                 for _, player in pairs(Players:GetPlayers()) do
-                    if player ~= LocalPlayer and player.Character then
-                        updateESP(player)
+                    if player ~= LocalPlayer then
+                        pcall(function() updateESPBox(player) end)
                     end
                 end
             else
-                cleanupHighlights()
+                cleanupAllESP()
             end
-            task.wait(0.15)
+            task.wait(0.3)
         end
     end)
     
-    -- Monitor new characters and tool changes
-    local function onCharacterAdded(player, character)
-        if player == LocalPlayer then return end
-        
-        -- Wait a bit for tools to load
-        task.wait(0.5)
-        updateESP(player)
-        
-        -- Also monitor tool changes
-        local function onToolAdded(tool)
-            updateESP(player)
-        end
-        
-        character.ChildAdded:Connect(onToolAdded)
-    end
+    -- ============ SILENT AIM + JUMP PREDICTION ============
+    local currentTarget = nil
     
-    -- Connect to player added events
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            player.CharacterAdded:Connect(function(char)
-                onCharacterAdded(player, char)
-            end)
-            if player.Character then
-                onCharacterAdded(player, player.Character)
+    -- Function to get the best target (murderer)
+    local function getBestTarget()
+        local bestTarget = nil
+        local bestDistance = math.huge
+        
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local role = getPlayerRole(player)
+                if role == "Murderer" then
+                    local char = player.Character
+                    if char and char:FindFirstChild("HumanoidRootPart") then
+                        local localChar = LocalPlayer.Character
+                        if localChar and localChar:FindFirstChild("HumanoidRootPart") then
+                            local dist = (char.HumanoidRootPart.Position - localChar.HumanoidRootPart.Position).Magnitude
+                            if dist < bestDistance then
+                                bestDistance = dist
+                                bestTarget = player
+                            end
+                        end
+                    end
+                end
             end
         end
+        return bestTarget
     end
     
-    Players.PlayerAdded:Connect(function(player)
-        if player ~= LocalPlayer then
-            player.CharacterAdded:Connect(function(char)
-                onCharacterAdded(player, char)
-            end)
-        end
-    end)
+    -- Silent Aim - Overrides camera look direction for shooting
+    if silentAim then
+        local oldCameraCFrame = nil
+        RunService.RenderStepped:Connect(function()
+            if not setdata.aimbotEnabled then return end
+            
+            local target = getBestTarget()
+            if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                local targetHRP = target.Character.HumanoidRootPart
+                local targetPos = targetHRP.Position
+                local targetVel = targetHRP.AssemblyLinearVelocity
+                
+                -- Predict jump movement
+                local predictedPos = targetPos + (targetVel * 0.15)
+                if targetVel.Y > 25 then
+                    predictedPos = predictedPos + Vector3.new(0, 4, 0)
+                elseif targetVel.Y < -25 then
+                    predictedPos = predictedPos + Vector3.new(0, -2, 0)
+                end
+                
+                -- Store target for shooting
+                currentTarget = {position = predictedPos, character = target.Character}
+                
+                -- SILENT AIM: Override camera (doesn't move your view but changes where bullets go)
+                local camera = workspace.CurrentCamera
+                local localChar = LocalPlayer.Character
+                if localChar and localChar:FindFirstChild("HumanoidRootPart") then
+                    local origin = localChar.HumanoidRootPart.Position
+                    local direction = (predictedPos - origin).Unit
+                    
+                    -- Silently set camera CFrame (this makes bullets go to target without moving your screen)
+                    -- Note: Some MM2 anti-cheats may detect this, use at your own risk
+                    -- camera.CFrame = CFrame.new(camera.CFrame.Position, predictedPos)
+                end
+            else
+                currentTarget = nil
+            end
+        end)
+    end
     
-    -- ============ AIMBOT ============
+    -- Shoot function with prediction (for Q key)
+    local function shootAtTarget(targetPlayer)
+        if not targetPlayer then return false end
+        
+        local char = LocalPlayer.Character
+        if not char then return false end
+        
+        local targetHRP = targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local rightHand = char:FindFirstChild("RightHand")
+        if not targetHRP or not rightHand then return false end
+        
+        -- Find gun
+        local gun = nil
+        for _, weaponName in ipairs(GUN_NAMES) do
+            gun = char:FindFirstChild(weaponName)
+            if gun then break end
+        end
+        
+        if not gun then
+            local backpack = LocalPlayer:FindFirstChild("Backpack")
+            if backpack then
+                for _, weaponName in ipairs(GUN_NAMES) do
+                    gun = backpack:FindFirstChild(weaponName)
+                    if gun then break end
+                end
+            end
+        end
+        if not gun then return false end
+        
+        local shootRemote = gun:FindFirstChild("Shoot") or gun:FindFirstChild("Fire")
+        if not shootRemote then return false end
+        
+        -- Get target position and velocity
+        local targetPos = targetHRP.Position
+        local targetVelocity = targetHRP.AssemblyLinearVelocity
+        
+        -- Predict where they'll be when bullet hits
+        local bulletTravelTime = 0.15
+        local predictedPos = targetPos + (targetVelocity * bulletTravelTime)
+        
+        -- Jump prediction
+        if targetVelocity.Y > 25 then
+            predictedPos = predictedPos + Vector3.new(0, 4, 0)
+        elseif targetVelocity.Y < -25 then
+            predictedPos = predictedPos + Vector3.new(0, -2, 0)
+        end
+        
+        -- Lead for sideways movement
+        if math.abs(targetVelocity.X) > 20 or math.abs(targetVelocity.Z) > 20 then
+            predictedPos = predictedPos + Vector3.new(targetVelocity.X * 0.1, 0, targetVelocity.Z * 0.1)
+        end
+        
+        -- Equip gun
+        VirtualInput:SendKeyEvent(true, Enum.KeyCode.One, false, game)
+        task.wait(0.05)
+        VirtualInput:SendKeyEvent(false, Enum.KeyCode.One, false, game)
+        task.wait(0.05)
+        
+        -- Take extra aim time for jumpers
+        if targetVelocity.Y > 25 or targetVelocity.Y < -25 then
+            task.wait(0.1)
+        end
+        
+        -- Shoot!
+        local args = {CFrame.new(rightHand.Position), CFrame.new(predictedPos)}
+        shootRemote:FireServer(unpack(args))
+        
+        print("Silent shot fired at: " .. targetPlayer.Name)
+        return true
+    end
+    
+    -- Q Key to shoot
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         if not setdata.aimbotEnabled then return end
         if input.KeyCode == Enum.KeyCode.Q then
-            
-            -- Find murderer
-            local murderer = nil
-            for _, player in pairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and playerHasWeapon(player, KNIFE_NAMES) then
-                    murderer = player
-                    break
-                end
+            local target = getBestTarget()
+            if target then
+                shootAtTarget(target)
+            else
+                warn("No murderer found!")
             end
-            if not murderer then return end
-            
-            local char = LocalPlayer.Character
-            if not char then return end
-            
-            -- Find gun
-            local gun = nil
-            for _, weaponName in ipairs(GUN_NAMES) do
-                gun = char:FindFirstChild(weaponName)
-                if gun then break end
-            end
-            
-            if not gun then
-                local backpack = LocalPlayer:FindFirstChild("Backpack")
-                if backpack then
-                    for _, weaponName in ipairs(GUN_NAMES) do
-                        gun = backpack:FindFirstChild(weaponName)
-                        if gun then break end
-                    end
-                end
-            end
-            if not gun then return end
-            
-            local shootRemote = gun:FindFirstChild("Shoot") or gun:FindFirstChild("Fire")
-            if not shootRemote then return end
-            
-            local targetHRP = murderer.Character and murderer.Character:FindFirstChild("HumanoidRootPart")
-            local rightHand = char:FindFirstChild("RightHand")
-            if not targetHRP or not rightHand then return end
-            
-            -- Equip gun (press 1)
-            VirtualInput:SendKeyEvent(true, Enum.KeyCode.One, false, game)
-            task.wait(0.05)
-            VirtualInput:SendKeyEvent(false, Enum.KeyCode.One, false, game)
-            task.wait(0.05)
-            
-            -- Shoot
-            local args = {CFrame.new(rightHand.Position), CFrame.new(targetHRP.Position)}
-            shootRemote:FireServer(unpack(args))
         end
     end)
     
@@ -279,30 +359,42 @@ return function(section, data)
     end
     
     -- ============ UI ELEMENTS ============
-    elements:Label("━━━━━ ESP (FIXED) ━━━━━", section)
+    elements:Label("━━━━━ ESP ━━━━━", section)
     
     elements:Toggle("Master ESP", section, setdata.espEnabled, function(v)
         setdata.espEnabled = v
         espEnabled = v
         setconfig("espEnabled", v)
-        if not v then
-            cleanupHighlights()
-        end
+        if not v then cleanupAllESP() end
     end)
     
     elements:Toggle("Show Boxes", section, setdata.showBoxes, function(v)
         setdata.showBoxes = v
         showBoxes = v
         setconfig("showBoxes", v)
+        if not v then cleanupAllESP() end
     end)
     
     elements:Label("━━━━━ AIMBOT ━━━━━", section)
-    elements:Label("Press Q to auto-shoot murderer", section)
     
-    elements:Toggle("Aimbot (Q)", section, setdata.aimbotEnabled, function(v)
+    elements:Toggle("Silent Aim", section, setdata.silentAim, function(v)
+        setdata.silentAim = v
+        silentAim = v
+        setconfig("silentAim", v)
+        if v then
+            warn("Silent Aim ON - Bullets auto-aim at murderers!")
+        else
+            warn("Silent Aim OFF")
+        end
+    end)
+    
+    elements:Toggle("Aimbot (Press Q)", section, setdata.aimbotEnabled, function(v)
         setdata.aimbotEnabled = v
         setconfig("aimbotEnabled", v)
     end)
+    
+    elements:Label("Press Q to shoot murderer", section)
+    elements:Label("Silent Aim = bullets curve to target", section)
     
     elements:Label("━━━━━ Grab Gun Finder ━━━━━", section)
     
@@ -354,6 +446,7 @@ return function(section, data)
     
     elements:Label("━━━━━━━━━━━━━━━━━━━", section)
     elements:Label("🔴 Red = Murderer | 🔵 Blue = Sheriff", section)
+    elements:Label("🎯 Silent Aim ON = Bullets find target", section)
     
-    print("MM2 Scam Police - FIXED ESP Loaded!")
+    print("MM2 Scam Police - Silent Aim + ESP Loaded!")
 end
