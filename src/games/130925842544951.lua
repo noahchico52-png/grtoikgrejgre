@@ -1,4 +1,4 @@
--- Murder Mystery 2 - MM2 Scam Police (SILENT AIM + PINK TRACER)
+-- Murder Mystery 2 - MM2 Scam Police (CAMERA NOT LOCKED)
 
 return function(section, data)
     local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
@@ -8,7 +8,6 @@ return function(section, data)
     local UserInputService = game:GetService("UserInputService")
     local Workspace = game:GetService("Workspace")
     local VirtualInput = game:GetService("VirtualInputManager")
-    local RunService = game:GetService("RunService")
     local TweenService = game:GetService("TweenService")
     
     -- Load saved settings
@@ -111,33 +110,32 @@ return function(section, data)
         return bestTarget
     end
     
-    -- ============ SILENT AIM (ALWAYS TARGETS MURDERER) ============
-    if silentAim then
-        local originalCameraCFrame = nil
-        RunService.RenderStepped:Connect(function()
-            local target = getBestTarget()
-            if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-                local targetHRP = target.Character.HumanoidRootPart
-                local targetPos = targetHRP.Position
-                local targetVel = targetHRP.AssemblyLinearVelocity
-                
-                -- Predict jump movement
-                local predictedPos = targetPos + (targetVel * 0.15)
-                if targetVel.Y > 25 then
-                    predictedPos = predictedPos + Vector3.new(0, 4, 0)
-                elseif targetVel.Y < -25 then
-                    predictedPos = predictedPos + Vector3.new(0, -2, 0)
-                end
-                
-                -- Silent Aim: Override camera direction (bullets curve to target)
-                local camera = workspace.CurrentCamera
-                local localChar = LocalPlayer.Character
-                if localChar and localChar:FindFirstChild("HumanoidRootPart") then
-                    -- This makes bullets go to target without moving your view
-                    camera.CFrame = CFrame.new(camera.CFrame.Position, predictedPos)
-                end
-            end
-        end)
+    -- Calculate predicted position for bullet (does NOT lock camera)
+    local function getPredictedPosition(targetPlayer)
+        if not targetPlayer or not targetPlayer.Character then return nil end
+        
+        local targetHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not targetHRP then return nil end
+        
+        local targetPos = targetHRP.Position
+        local targetVelocity = targetHRP.AssemblyLinearVelocity
+        
+        local bulletTravelTime = 0.15
+        local predictedPos = targetPos + (targetVelocity * bulletTravelTime)
+        
+        -- Jump prediction
+        if targetVelocity.Y > 25 then
+            predictedPos = predictedPos + Vector3.new(0, 4, 0)
+        elseif targetVelocity.Y < -25 then
+            predictedPos = predictedPos + Vector3.new(0, -2, 0)
+        end
+        
+        -- Lead for sideways movement
+        if math.abs(targetVelocity.X) > 20 or math.abs(targetVelocity.Z) > 20 then
+            predictedPos = predictedPos + Vector3.new(targetVelocity.X * 0.1, 0, targetVelocity.Z * 0.1)
+        end
+        
+        return predictedPos
     end
     
     -- ============ PINK TRACER FUNCTION ============
@@ -240,93 +238,77 @@ return function(section, data)
         end
     end)
     
-    -- ============ AIMBOT WITH PREDICTION ============
+    -- ============ SHOOT FUNCTION (WITHOUT CAMERA LOCK) ============
+    local function shootAtMurderer()
+        local murderer = getBestTarget()
+        if not murderer then 
+            warn("💔 No murderer found!")
+            return false
+        end
+        
+        local char = LocalPlayer.Character
+        if not char then return false end
+        
+        -- Find gun
+        local gun = nil
+        for _, weaponName in ipairs(GUN_NAMES) do
+            gun = char:FindFirstChild(weaponName)
+            if gun then break end
+        end
+        
+        if not gun then
+            local backpack = LocalPlayer:FindFirstChild("Backpack")
+            if backpack then
+                for _, weaponName in ipairs(GUN_NAMES) do
+                    gun = backpack:FindFirstChild(weaponName)
+                    if gun then break end
+                end
+            end
+        end
+        if not gun then 
+            warn("💔 No gun found!")
+            return false
+        end
+        
+        local shootRemote = gun:FindFirstChild("Shoot") or gun:FindFirstChild("Fire")
+        if not shootRemote then return false end
+        
+        local targetHRP = murderer.Character and murderer.Character:FindFirstChild("HumanoidRootPart")
+        local rightHand = char:FindFirstChild("RightHand")
+        if not targetHRP or not rightHand then return false end
+        
+        -- Get gun position
+        local gunPos = rightHand.Position
+        
+        -- Get predicted position (where the bullet should go)
+        local predictedPos = getPredictedPosition(murderer)
+        if not predictedPos then return false end
+        
+        -- Create pink tracer (if enabled)
+        if showTracer then
+            createPinkTracer(gunPos, predictedPos)
+        end
+        
+        -- Equip gun
+        VirtualInput:SendKeyEvent(true, Enum.KeyCode.One, false, game)
+        task.wait(0.05)
+        VirtualInput:SendKeyEvent(false, Enum.KeyCode.One, false, game)
+        task.wait(0.05)
+        
+        -- SHOOT! (Camera stays normal, bullet goes to predicted position)
+        local args = {CFrame.new(rightHand.Position), CFrame.new(predictedPos)}
+        shootRemote:FireServer(unpack(args))
+        
+        print("🎯 Shot fired at: " .. murderer.Name)
+        return true
+    end
+    
+    -- ============ Q KEY TO SHOOT ============
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         if not setdata.aimbotEnabled then return end
         if input.KeyCode == Enum.KeyCode.Q then
-            
-            local murderer = getBestTarget()
-            if not murderer then 
-                warn("💔 No murderer found!")
-                return 
-            end
-            
-            local char = LocalPlayer.Character
-            if not char then return end
-            
-            -- Find gun
-            local gun = nil
-            for _, weaponName in ipairs(GUN_NAMES) do
-                gun = char:FindFirstChild(weaponName)
-                if gun then break end
-            end
-            
-            if not gun then
-                local backpack = LocalPlayer:FindFirstChild("Backpack")
-                if backpack then
-                    for _, weaponName in ipairs(GUN_NAMES) do
-                        gun = backpack:FindFirstChild(weaponName)
-                        if gun then break end
-                    end
-                end
-            end
-            if not gun then 
-                warn("💔 No gun found!")
-                return 
-            end
-            
-            local shootRemote = gun:FindFirstChild("Shoot") or gun:FindFirstChild("Fire")
-            if not shootRemote then return end
-            
-            local targetHRP = murderer.Character and murderer.Character:FindFirstChild("HumanoidRootPart")
-            local rightHand = char:FindFirstChild("RightHand")
-            if not targetHRP or not rightHand then return end
-            
-            -- Get gun position
-            local gunPos = rightHand.Position
-            
-            -- Get target position and velocity
-            local targetPos = targetHRP.Position
-            local targetVelocity = targetHRP.AssemblyLinearVelocity
-            
-            -- Predict where they'll be
-            local bulletTravelTime = 0.15
-            local predictedPos = targetPos + (targetVelocity * bulletTravelTime)
-            
-            -- Jump prediction
-            if targetVelocity.Y > 25 then
-                predictedPos = predictedPos + Vector3.new(0, 4, 0)
-            elseif targetVelocity.Y < -25 then
-                predictedPos = predictedPos + Vector3.new(0, -2, 0)
-            end
-            
-            -- Lead for sideways movement
-            if math.abs(targetVelocity.X) > 20 or math.abs(targetVelocity.Z) > 20 then
-                predictedPos = predictedPos + Vector3.new(targetVelocity.X * 0.1, 0, targetVelocity.Z * 0.1)
-            end
-            
-            -- Create pink tracer
-            if showTracer then
-                createPinkTracer(gunPos, predictedPos)
-            end
-            
-            -- Equip gun
-            VirtualInput:SendKeyEvent(true, Enum.KeyCode.One, false, game)
-            task.wait(0.05)
-            VirtualInput:SendKeyEvent(false, Enum.KeyCode.One, false, game)
-            task.wait(0.05)
-            
-            -- Extra aim time for jumpers
-            if targetVelocity.Y > 25 or targetVelocity.Y < -25 then
-                task.wait(0.1)
-            end
-            
-            -- Shoot!
-            local args = {CFrame.new(rightHand.Position), CFrame.new(predictedPos)}
-            shootRemote:FireServer(unpack(args))
-            
-            print("🎯 Shot fired at: " .. murderer.Name)
+            shootAtMurderer()
         end
     end)
     
@@ -386,17 +368,6 @@ return function(section, data)
     
     elements:Label("━━━━━ AIMBOT ━━━━━ 🎯", section)
     elements:Label("Press Q to shoot murderer", section)
-    
-    elements:Toggle("🎯 Silent Aim", section, setdata.silentAim, function(v)
-        setdata.silentAim = v
-        silentAim = v
-        setconfig("silentAim", v)
-        if v then
-            warn("🎯 Silent Aim ON - Bullets auto-lock onto murderers!")
-        else
-            warn("Silent Aim OFF")
-        end
-    end)
     
     elements:Toggle("Aimbot (Q)", section, setdata.aimbotEnabled, function(v)
         setdata.aimbotEnabled = v
@@ -463,8 +434,8 @@ return function(section, data)
     elements:Label("━━━━━━━━━━━━━━━━━━━", section)
     elements:Label("💖 PINK = Knife (Murderer)", section)
     elements:Label("💙 CYAN = Gun (Sheriff)", section)
-    elements:Label("🎯 Silent Aim = Auto-lock bullets", section)
-    elements:Label("🎀 Pink tracer = See bullet path", section)
+    elements:Label("🎀 Pink tracer shows bullet path", section)
+    elements:Label("✨ Camera is NOT locked - you can move freely!", section)
     
-    print("💕 MM2 Scam Police - Silent Aim + Pink Tracer Loaded! 💕")
+    print("💕 MM2 Scam Police - Camera Fixed! No more camera lock! 💕")
 end
