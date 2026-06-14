@@ -1,4 +1,4 @@
--- Divine Brainrot Farmer for Brainrot Police
+-- Divine Brainrot Farmer for Brainrot Police (3 Second Delays + Pickup)
 
 return function(section, data)
     local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
@@ -6,6 +6,7 @@ return function(section, data)
     local Players = game:GetService("Players")
     local LocalPlayer = Players.LocalPlayer
     local Workspace = game:GetService("Workspace")
+    local UserInputService = game:GetService("UserInputService")
     
     -- Load saved settings
     local setdata = data[tostring(game.PlaceId)] or {}
@@ -14,8 +15,9 @@ return function(section, data)
     writefile("BrainrotPolice/Config.json", game:GetService("HttpService"):JSONEncode(data))
     
     local farming = false
+    local holdingE = false
     
-    -- Function to pick up brainrot
+    -- Function to pick up brainrot by holding E
     local function pickupBrainrot()
         local char = LocalPlayer.Character
         if not char then return end
@@ -35,12 +37,19 @@ return function(section, data)
                         if prompt then
                             -- TP to brainrot
                             hrp.CFrame = rootPart.CFrame + Vector3.new(0, 3, 0)
-                            task.wait(3)
+                            task.wait(0.5)
+                            print("📍 Teleported to: " .. child.Name)
                             
-                            -- Pick up
+                            -- Hold E to pick up (simulate holding for 3 seconds)
+                            print("💜 Holding E to pick up...")
+                            holdingE = true
+                            
+                            -- Simulate holding E for 3 seconds
                             prompt:InputHoldBegin()
                             task.wait(3)
                             prompt:InputHoldEnd()
+                            holdingE = false
+                            
                             print("✅ Picked up: " .. child.Name)
                             return true
                         end
@@ -65,6 +74,7 @@ return function(section, data)
                 local plotStand = floor1:FindFirstChild("PlotStand")
                 if plotStand then
                     hrp.CFrame = plotStand:GetPivot() + Vector3.new(0, 3, 0)
+                    task.wait(0.5)
                     print("✅ Teleported back to base!")
                     return true
                 end
@@ -77,7 +87,8 @@ return function(section, data)
     local function farm()
         if not farming then return end
         
-        print("🔄 Farming brainrot...")
+        print("━━━━━━━━━━━━━━━━━━━━")
+        print("🔄 Farming cycle starting...")
         
         -- TP to Zones.Divine
         local zones = Workspace:FindFirstChild("Zones")
@@ -87,7 +98,8 @@ return function(section, data)
                 local char = LocalPlayer.Character
                 if char and char:FindFirstChild("HumanoidRootPart") then
                     char.HumanoidRootPart.CFrame = divineZone:GetPivot() + Vector3.new(0, 3, 0)
-                    task.wait(0.5)
+                    task.wait(3) -- 3 second delay
+                    print("✅ Teleported to Zones.Divine")
                 end
             end
         end
@@ -98,9 +110,12 @@ return function(section, data)
         -- TP back to base
         tpToBase()
         
+        print("✅ Cycle complete!")
+        print("━━━━━━━━━━━━━━━━━━━━")
+        
         -- Loop
         if farming then
-            task.wait(2)
+            task.wait(3) -- 3 second delay between cycles
             farm()
         end
     end
@@ -130,9 +145,11 @@ return function(section, data)
     end)
     
     elements:Label("━━━━━━━━━━━━━━━━━━━", section)
-    elements:Label("Finds brainrot in ItemSpawners.Divine", section)
-    elements:Label("Tps to Zones.Divine first", section)
-    elements:Label("Then picks up and returns to base", section)
+    elements:Label("1. TP to Zones.Divine", section)
+    elements:Label("2. Find brainrot in ItemSpawners.Divine", section)
+    elements:Label("3. Hold E for 3 seconds to pick up", section)
+    elements:Label("4. TP back to base", section)
+    elements:Label("5. Repeat after 3 seconds", section)
     
     print("✅ Divine Brainrot Farmer loaded!")
 end
