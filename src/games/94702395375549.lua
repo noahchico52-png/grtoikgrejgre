@@ -35,7 +35,7 @@ return function(section, data)
                         if prompt then
                             -- TP to brainrot
                             hrp.CFrame = rootPart.CFrame + Vector3.new(0, 3, 0)
-                            task.wait(0.3)
+                            task.wait(3)
                             
                             -- Pick up
                             prompt:InputHoldBegin()
