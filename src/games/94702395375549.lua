@@ -39,7 +39,7 @@ return function(section, data)
                             
                             -- Pick up
                             prompt:InputHoldBegin()
-                            task.wait(0.1)
+                            task.wait(3)
                             prompt:InputHoldEnd()
                             print("✅ Picked up: " .. child.Name)
                             return true
