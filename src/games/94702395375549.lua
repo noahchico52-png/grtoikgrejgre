@@ -115,7 +115,7 @@ return function(section, data)
         
         -- Loop
         if farming then
-            task.wait(3) -- 3 second delay between cycles
+            task.wait(0.1) -- 3 second delay between cycles
             farm()
         end
     end
