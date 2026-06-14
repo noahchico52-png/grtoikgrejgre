@@ -6,7 +6,6 @@ return function(section, data)
     local Players = game:GetService("Players")
     local LocalPlayer = Players.LocalPlayer
     local Workspace = game:GetService("Workspace")
-    local UserInputService = game:GetService("UserInputService")
     
     -- Load saved settings
     local setdata = data[tostring(game.PlaceId)] or {}
@@ -15,9 +14,8 @@ return function(section, data)
     writefile("BrainrotPolice/Config.json", game:GetService("HttpService"):JSONEncode(data))
     
     local farming = false
-    local holdingE = false
     
-    -- Function to pick up brainrot by holding E
+    -- Function to pick up brainrot
     local function pickupBrainrot()
         local char = LocalPlayer.Character
         if not char then return end
@@ -37,18 +35,12 @@ return function(section, data)
                         if prompt then
                             -- TP to brainrot
                             hrp.CFrame = rootPart.CFrame + Vector3.new(0, 3, 0)
-                            task.wait(0.5)
-                            print("📍 Teleported to: " .. child.Name)
+                            task.wait(3)
                             
-                            -- Hold E to pick up (simulate holding for 3 seconds)
-                            print("💜 Holding E to pick up...")
-                            holdingE = true
-                            
-                            -- Simulate holding E for 3 seconds
+                            -- Pick up (simulate hold E)
                             prompt:InputHoldBegin()
                             task.wait(3)
                             prompt:InputHoldEnd()
-                            holdingE = false
                             
                             print("✅ Picked up: " .. child.Name)
                             return true
@@ -60,27 +52,49 @@ return function(section, data)
         return false
     end
     
-    -- Function to teleport back to base
+    -- Function to teleport back to base (Plots)
     local function tpToBase()
         local char = LocalPlayer.Character
         if not char then return end
         local hrp = char:FindFirstChild("HumanoidRootPart")
         if not hrp then return end
         
-        local base = Workspace:FindFirstChild("Plot_voltneoxe21")
-        if base then
-            local floor1 = base:FindFirstChild("Floor1")
-            if floor1 then
-                local plotStand = floor1:FindFirstChild("PlotStand")
-                if plotStand then
-                    hrp.CFrame = plotStand:GetPivot() + Vector3.new(0, 3, 0)
-                    task.wait(0.5)
-                    print("✅ Teleported back to base!")
-                    return true
+        -- Try to find base/plot location
+        local baseFound = false
+        
+        -- Look for Plot_voltneoxe21
+        local plot = Workspace:FindFirstChild("Plot_voltneoxe21")
+        if plot then
+            hrp.CFrame = plot:GetPivot() + Vector3.new(0, 5, 0)
+            baseFound = true
+            print("✅ Teleported to Plot_voltneoxe21")
+        -- Look for any Plot
+        elseif Workspace:FindFirstChild("Plots") then
+            local plots = Workspace:FindFirstChild("Plots")
+            for _, child in pairs(plots:GetChildren()) do
+                if child:IsA("BasePart") then
+                    hrp.CFrame = child.CFrame + Vector3.new(0, 3, 0)
+                    baseFound = true
+                    print("✅ Teleported to: " .. child.Name)
+                    break
                 end
             end
+        -- Look for any Spawn location
+        elseif Workspace:FindFirstChild("SpawnLocation") then
+            local spawn = Workspace:FindFirstChild("SpawnLocation")
+            hrp.CFrame = spawn.CFrame + Vector3.new(0, 3, 0)
+            baseFound = true
+            print("✅ Teleported to SpawnLocation")
         end
-        return false
+        
+        if not baseFound then
+            -- Default teleport to 0,0,0 if no base found
+            hrp.CFrame = CFrame.new(0, 10, 0)
+            print("⚠️ No base found, teleported to 0,0,0")
+        end
+        
+        task.wait(0.5)
+        return baseFound
     end
     
     -- Farm function
@@ -98,7 +112,7 @@ return function(section, data)
                 local char = LocalPlayer.Character
                 if char and char:FindFirstChild("HumanoidRootPart") then
                     char.HumanoidRootPart.CFrame = divineZone:GetPivot() + Vector3.new(0, 3, 0)
-                    task.wait(3) -- 3 second delay
+                    task.wait(3)
                     print("✅ Teleported to Zones.Divine")
                 end
             end
@@ -115,7 +129,7 @@ return function(section, data)
         
         -- Loop
         if farming then
-            task.wait(0.1) -- 3 second delay between cycles
+            task.wait(3)
             farm()
         end
     end
@@ -148,7 +162,7 @@ return function(section, data)
     elements:Label("1. TP to Zones.Divine", section)
     elements:Label("2. Find brainrot in ItemSpawners.Divine", section)
     elements:Label("3. Hold E for 3 seconds to pick up", section)
-    elements:Label("4. TP back to base", section)
+    elements:Label("4. TP back to base (Plot)", section)
     elements:Label("5. Repeat after 3 seconds", section)
     
     print("✅ Divine Brainrot Farmer loaded!")
