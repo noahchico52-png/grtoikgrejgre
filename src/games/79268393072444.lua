@@ -1,17 +1,13 @@
--- Tycoon Auto Buyer for BrainrotPolice (Multiple Upgrade paths)
+-- Tycoon Auto Buyer for BrainrotPolice (Combined Loop)
 
 return function(section, data)
     local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
     
     -- Load saved data
     getgenv().AutoBuyTycoon = false
-    getgenv().AutoUpgrade = false
-    getgenv().AutoLemonStandUpgrade = false
     
     local setdata = data[tostring(game.PlaceId)] or {}
     setdata.autobuystycoon = setdata.autobuystycoon or false
-    setdata.autoupgrade = setdata.autoupgrade or false
-    setdata.autolemonstandupgrade = setdata.autolemonstandupgrade or false
     data[tostring(game.PlaceId)] = setdata
     writefile("BrainrotPolice/Config.json", game:GetService("HttpService"):JSONEncode(data))
     
@@ -66,9 +62,6 @@ return function(section, data)
                         if upgrade then return upgrade end
                     end
                 end
-                -- Alternative: direct Upgrade
-                local upgrade = lemonDash:FindFirstChild("Upgrade")
-                if upgrade then return upgrade end
             end
         end
         return nil
@@ -89,9 +82,6 @@ return function(section, data)
                         if upgrade then return upgrade end
                     end
                 end
-                -- Alternative: direct Upgrade
-                local upgrade = lemonStand:FindFirstChild("Upgrade")
-                if upgrade then return upgrade end
             end
         end
         return nil
@@ -132,14 +122,15 @@ return function(section, data)
         end
     end
     
-    -- Auto Upgrade (LemonDash)
-    local function doUpgrade()
+    -- Do both upgrades
+    local function doUpgrades()
         local myTycoon = findMyTycoon()
         if not myTycoon then
             print("[AutoUpgrade] ❌ No tycoon found")
             return
         end
         
+        -- Upgrade 1: LemonDash chain
         local upgradeEvent = findUpgrade(myTycoon)
         if upgradeEvent then
             local success = pcall(function()
@@ -147,110 +138,64 @@ return function(section, data)
             end)
             
             if success then
-                print("[AutoUpgrade] ✅ Upgrade successful!")
+                print("[AutoUpgrade] ✅ LemonDash Upgrade successful!")
             else
-                print("[AutoUpgrade] ❌ Cannot afford upgrade")
+                print("[AutoUpgrade] ❌ Cannot afford LemonDash upgrade")
             end
         else
-            print("[AutoUpgrade] ❌ Upgrade event not found")
-        end
-    end
-    
-    -- Auto Lemon Stand Upgrade
-    local function doLemonStandUpgrade()
-        local myTycoon = findMyTycoon()
-        if not myTycoon then
-            print("[AutoLemonStand] ❌ No tycoon found")
-            return
+            print("[AutoUpgrade] ❌ LemonDash Upgrade event not found")
         end
         
-        local upgradeEvent = findLemonStandUpgrade(myTycoon)
-        if upgradeEvent then
+        task.wait(0.5)
+        
+        -- Upgrade 2: Lemon Stand chain
+        local lemonStandUpgrade = findLemonStandUpgrade(myTycoon)
+        if lemonStandUpgrade then
             local success = pcall(function()
-                upgradeEvent:InvokeServer(1)
+                lemonStandUpgrade:InvokeServer(1)
             end)
             
             if success then
-                print("[AutoLemonStand] ✅ Lemon Stand Upgrade successful!")
+                print("[AutoUpgrade] ✅ Lemon Stand Upgrade successful!")
             else
-                print("[AutoLemonStand] ❌ Cannot afford upgrade")
+                print("[AutoUpgrade] ❌ Cannot afford Lemon Stand upgrade")
             end
         else
-            print("[AutoLemonStand] ❌ Lemon Stand Upgrade event not found")
+            print("[AutoUpgrade] ❌ Lemon Stand Upgrade event not found")
         end
     end
     
-    -- Main loops
+    -- Main loop (combines everything)
     local function startAutoBuy()
         getgenv().AutoBuyTycoon = true
-        print("[AutoBuy] Started auto-buying")
+        print("[AutoBuy] Started - Buying items and upgrading...")
         
         while getgenv().AutoBuyTycoon do
+            -- Buy decor items
             purchaseItems()
+            
+            task.wait(1)
+            
+            -- Do both upgrades
+            doUpgrades()
+            
+            -- Wait before next cycle
             task.wait(5)
         end
     end
     
     local function stopAutoBuy()
         getgenv().AutoBuyTycoon = false
-        print("[AutoBuy] Stopped auto-buying")
+        print("[AutoBuy] Stopped")
     end
     
-    local function startAutoUpgrade()
-        getgenv().AutoUpgrade = true
-        print("[AutoUpgrade] Started auto-upgrading")
-        
-        while getgenv().AutoUpgrade do
-            doUpgrade()
-            task.wait(10)
-        end
-    end
-    
-    local function stopAutoUpgrade()
-        getgenv().AutoUpgrade = false
-        print("[AutoUpgrade] Stopped auto-upgrading")
-    end
-    
-    local function startAutoLemonStandUpgrade()
-        getgenv().AutoLemonStandUpgrade = true
-        print("[AutoLemonStand] Started auto-upgrading Lemon Stand")
-        
-        while getgenv().AutoLemonStandUpgrade do
-            doLemonStandUpgrade()
-            task.wait(10)
-        end
-    end
-    
-    local function stopAutoLemonStandUpgrade()
-        getgenv().AutoLemonStandUpgrade = false
-        print("[AutoLemonStand] Stopped auto-upgrading Lemon Stand")
-    end
-    
-    -- UI Elements
-    elements:Toggle("Auto Buy Decor Items", section, setdata.autobuystycoon, function(v)
+    -- UI Element
+    elements:Toggle("Auto Buy & Upgrade", section, setdata.autobuystycoon, function(v)
         getgenv().setconfig("autobuystycoon", v)
         if v then
             startAutoBuy()
         else
             stopAutoBuy()
-        end
-    end)
-    
-    elements:Toggle("Auto Upgrade (LemonDash)", section, setdata.autoupgrade, function(v)
-        getgenv().setconfig("autoupgrade", v)
-        if v then
-            startAutoUpgrade()
-        else
-            stopAutoUpgrade()
-        end
-    end)
-    
-    elements:Toggle("Auto Upgrade (Lemon Stand)", section, setdata.autolemonstandupgrade, function(v)
-        getgenv().setconfig("autolemonstandupgrade", v)
-        if v then
-            startAutoLemonStandUpgrade()
-        else
-            stopAutoLemonStandUpgrade()
         end
     end)
 end
