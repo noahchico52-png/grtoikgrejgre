@@ -1,15 +1,17 @@
--- Tycoon Auto Buyer for BrainrotPolice
+-- Tycoon Auto Buyer for BrainrotPolice (Multiple Upgrade paths)
 
 return function(section, data)
     local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
     
     -- Load saved data
     getgenv().AutoBuyTycoon = false
-    getgenv().BuyDelay = 0.3
+    getgenv().AutoUpgrade = false
+    getgenv().AutoLemonStandUpgrade = false
     
     local setdata = data[tostring(game.PlaceId)] or {}
     setdata.autobuystycoon = setdata.autobuystycoon or false
-    setdata.buydelay = setdata.buydelay or "0.3"
+    setdata.autoupgrade = setdata.autoupgrade or false
+    setdata.autolemonstandupgrade = setdata.autolemonstandupgrade or false
     data[tostring(game.PlaceId)] = setdata
     writefile("BrainrotPolice/Config.json", game:GetService("HttpService"):JSONEncode(data))
     
@@ -49,7 +51,53 @@ return function(section, data)
         return nil
     end
     
-    -- Purchase items
+    -- Find Upgrade path (LemonDash chain)
+    local function findUpgrade(tycoon)
+        local purchases = tycoon:FindFirstChild("Purchases")
+        if purchases then
+            local lemonDash = purchases:FindFirstChild("LemonDash")
+            if lemonDash then
+                -- Path: LemonDash.LemonDash.LemonDash.Upgrade
+                local upgrade = lemonDash:FindFirstChild("LemonDash")
+                if upgrade then
+                    upgrade = upgrade:FindFirstChild("LemonDash")
+                    if upgrade then
+                        upgrade = upgrade:FindFirstChild("Upgrade")
+                        if upgrade then return upgrade end
+                    end
+                end
+                -- Alternative: direct Upgrade
+                local upgrade = lemonDash:FindFirstChild("Upgrade")
+                if upgrade then return upgrade end
+            end
+        end
+        return nil
+    end
+    
+    -- Find Lemon Stand Upgrade
+    local function findLemonStandUpgrade(tycoon)
+        local purchases = tycoon:FindFirstChild("Purchases")
+        if purchases then
+            local lemonStand = purchases:FindFirstChild("Lemon Stand")
+            if lemonStand then
+                -- Path: "Lemon Stand"."Lemon Stand"."Lemon Stand".Upgrade
+                local upgrade = lemonStand:FindFirstChild("Lemon Stand")
+                if upgrade then
+                    upgrade = upgrade:FindFirstChild("Lemon Stand")
+                    if upgrade then
+                        upgrade = upgrade:FindFirstChild("Upgrade")
+                        if upgrade then return upgrade end
+                    end
+                end
+                -- Alternative: direct Upgrade
+                local upgrade = lemonStand:FindFirstChild("Upgrade")
+                if upgrade then return upgrade end
+            end
+        end
+        return nil
+    end
+    
+    -- Purchase Decor items
     local function purchaseItems()
         local myTycoon = findMyTycoon()
         if not myTycoon then
@@ -58,45 +106,88 @@ return function(section, data)
         end
         
         local decor = findDecor(myTycoon)
-        if not decor then
-            print("[AutoBuy] ❌ Decor folder not found")
-            return
-        end
-        
-        print("[AutoBuy] 🔍 Checking items in " .. myTycoon.Name)
-        
-        for _, item in pairs(decor:GetChildren()) do
-            if not getgenv().AutoBuyTycoon then break end
-            
-            local enabled = item:GetAttribute("Enabled") == true
-            local shown = item:GetAttribute("Shown") == true
-            
-            if enabled and shown then
-                local purchaseEvent = item:FindFirstChild("Purchase")
-                if purchaseEvent then
-                    local success = pcall(function()
-                        purchaseEvent:InvokeServer(false)
-                    end)
-                    
-                    if success then
-                        print("[AutoBuy] ✅ Purchased: " .. item.Name)
-                    else
-                        print("[AutoBuy] ❌ Cannot afford: " .. item.Name)
+        if decor then
+            for _, item in pairs(decor:GetChildren()) do
+                if not getgenv().AutoBuyTycoon then break end
+                
+                local enabled = item:GetAttribute("Enabled") == true
+                local shown = item:GetAttribute("Shown") == true
+                
+                if enabled and shown then
+                    local purchaseEvent = item:FindFirstChild("Purchase")
+                    if purchaseEvent then
+                        local success = pcall(function()
+                            purchaseEvent:InvokeServer(false)
+                        end)
+                        
+                        if success then
+                            print("[AutoBuy] ✅ Purchased: " .. item.Name)
+                        else
+                            print("[AutoBuy] ❌ Cannot afford: " .. item.Name)
+                        end
+                        task.wait(0.3)
                     end
-                    task.wait(getgenv().BuyDelay)
                 end
             end
         end
     end
     
-    -- Auto buy loop
+    -- Auto Upgrade (LemonDash)
+    local function doUpgrade()
+        local myTycoon = findMyTycoon()
+        if not myTycoon then
+            print("[AutoUpgrade] ❌ No tycoon found")
+            return
+        end
+        
+        local upgradeEvent = findUpgrade(myTycoon)
+        if upgradeEvent then
+            local success = pcall(function()
+                upgradeEvent:InvokeServer(1)
+            end)
+            
+            if success then
+                print("[AutoUpgrade] ✅ Upgrade successful!")
+            else
+                print("[AutoUpgrade] ❌ Cannot afford upgrade")
+            end
+        else
+            print("[AutoUpgrade] ❌ Upgrade event not found")
+        end
+    end
+    
+    -- Auto Lemon Stand Upgrade
+    local function doLemonStandUpgrade()
+        local myTycoon = findMyTycoon()
+        if not myTycoon then
+            print("[AutoLemonStand] ❌ No tycoon found")
+            return
+        end
+        
+        local upgradeEvent = findLemonStandUpgrade(myTycoon)
+        if upgradeEvent then
+            local success = pcall(function()
+                upgradeEvent:InvokeServer(1)
+            end)
+            
+            if success then
+                print("[AutoLemonStand] ✅ Lemon Stand Upgrade successful!")
+            else
+                print("[AutoLemonStand] ❌ Cannot afford upgrade")
+            end
+        else
+            print("[AutoLemonStand] ❌ Lemon Stand Upgrade event not found")
+        end
+    end
+    
+    -- Main loops
     local function startAutoBuy()
         getgenv().AutoBuyTycoon = true
         print("[AutoBuy] Started auto-buying")
         
         while getgenv().AutoBuyTycoon do
             purchaseItems()
-            task.wait(5) -- Wait 5 seconds before checking again
+            task.wait(5)
         end
     end
     
@@ -105,8 +196,38 @@ return function(section, data)
         print("[AutoBuy] Stopped auto-buying")
     end
     
+    local function startAutoUpgrade()
+        getgenv().AutoUpgrade = true
+        print("[AutoUpgrade] Started auto-upgrading")
+        
+        while getgenv().AutoUpgrade do
+            doUpgrade()
+            task.wait(10)
+        end
+    end
+    
+    local function stopAutoUpgrade()
+        getgenv().AutoUpgrade = false
+        print("[AutoUpgrade] Stopped auto-upgrading")
+    end
+    
+    local function startAutoLemonStandUpgrade()
+        getgenv().AutoLemonStandUpgrade = true
+        print("[AutoLemonStand] Started auto-upgrading Lemon Stand")
+        
+        while getgenv().AutoLemonStandUpgrade do
+            doLemonStandUpgrade()
+            task.wait(10)
+        end
+    end
+    
+    local function stopAutoLemonStandUpgrade()
+        getgenv().AutoLemonStandUpgrade = false
+        print("[AutoLemonStand] Stopped auto-upgrading Lemon Stand")
+    end
+    
     -- UI Elements
-    elements:Toggle("Auto Buy Tycoon Items", section, setdata.autobuystycoon, function(v)
+    elements:Toggle("Auto Buy Decor Items", section, setdata.autobuystycoon, function(v)
         getgenv().setconfig("autobuystycoon", v)
         if v then
             startAutoBuy()
@@ -115,25 +236,21 @@ return function(section, data)
         end
     end)
     
-    elements:Textbox("Buy Delay (seconds)", section, setdata.buydelay, function(v)
-        getgenv().setconfig("buydelay", v)
-        getgenv().BuyDelay = tonumber(v) or 0.3
-    end)
-    
-    elements:Button("Buy Now (One Time)", section, function()
-        purchaseItems()
-    end)
-    
-    elements:Button("Find My Tycoon", section, function()
-        local tycoon = findMyTycoon()
-        if tycoon then
-            print("[AutoBuy] ✅ You own: " .. tycoon.Name)
-            local decor = findDecor(tycoon)
-            if decor then
-                print("[AutoBuy] 📁 Decor found with " .. #decor:GetChildren() .. " items")
-            end
+    elements:Toggle("Auto Upgrade (LemonDash)", section, setdata.autoupgrade, function(v)
+        getgenv().setconfig("autoupgrade", v)
+        if v then
+            startAutoUpgrade()
         else
-            print("[AutoBuy] ❌ No tycoon found for: " .. myName)
+            stopAutoUpgrade()
+        end
+    end)
+    
+    elements:Toggle("Auto Upgrade (Lemon Stand)", section, setdata.autolemonstandupgrade, function(v)
+        getgenv().setconfig("autolemonstandupgrade", v)
+        if v then
+            startAutoLemonStandUpgrade()
+        else
+            stopAutoLemonStandUpgrade()
         end
     end)
 end
