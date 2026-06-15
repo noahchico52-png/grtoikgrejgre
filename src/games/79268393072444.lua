@@ -1,24 +1,35 @@
--- Tycoon Auto Buyer for BrainrotPolice (Multiple Upgrade paths)
+-- Tycoon Auto Buyer (Multiple Upgrade paths + Lemon Depot)
 
-return function(section, data)
-    local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
-    
-    -- Load saved data
+return function(data, elements)
+    local section = elements:Section("Tycoon Auto Buyer")         
+
     getgenv().AutoBuyTycoon = false
     getgenv().AutoUpgrade = false
     getgenv().AutoLemonStandUpgrade = false
+    getgenv().AutoLemonDepot = false
     
     local setdata = data[tostring(game.PlaceId)] or {}
     setdata.autobuystycoon = setdata.autobuystycoon or false
     setdata.autoupgrade = setdata.autoupgrade or false
     setdata.autolemonstandupgrade = setdata.autolemonstandupgrade or false
-    data[tostring(game.PlaceId)] = setdata
-    writefile("BrainrotPolice/Config.json", game:GetService("HttpService"):JSONEncode(data))
-    
+    setdata.autolemondepot = setdata.autolemondepot or false
+   
     local Players = game:GetService("Players")
     local LocalPlayer = Players.LocalPlayer
     local workspace = game.Workspace
     local myName = LocalPlayer.Name
+    
+    -- Find your tycoon number
+    local function getMyTycoonNumber()
+        for _, t in pairs(workspace:GetChildren()) do
+            if t.Name and t.Name:match("Tycoon") and t:FindFirstChild("Owner") then
+                if tostring(t.Owner.Value) == myName then
+                    return t.Name:match("(%d+)")
+                end
+            end
+        end
+        return nil
+    end
     
     -- Find your tycoon
     local function findMyTycoon()
@@ -57,7 +68,6 @@ return function(section, data)
         if purchases then
             local lemonDash = purchases:FindFirstChild("LemonDash")
             if lemonDash then
-                -- Path: LemonDash.LemonDash.LemonDash.Upgrade
                 local upgrade = lemonDash:FindFirstChild("LemonDash")
                 if upgrade then
                     upgrade = upgrade:FindFirstChild("LemonDash")
@@ -66,7 +76,6 @@ return function(section, data)
                         if upgrade then return upgrade end
                     end
                 end
-                -- Alternative: direct Upgrade
                 local upgrade = lemonDash:FindFirstChild("Upgrade")
                 if upgrade then return upgrade end
             end
@@ -80,7 +89,6 @@ return function(section, data)
         if purchases then
             local lemonStand = purchases:FindFirstChild("Lemon Stand")
             if lemonStand then
-                -- Path: "Lemon Stand"."Lemon Stand"."Lemon Stand".Upgrade
                 local upgrade = lemonStand:FindFirstChild("Lemon Stand")
                 if upgrade then
                     upgrade = upgrade:FindFirstChild("Lemon Stand")
@@ -89,7 +97,6 @@ return function(section, data)
                         if upgrade then return upgrade end
                     end
                 end
-                -- Alternative: direct Upgrade
                 local upgrade = lemonStand:FindFirstChild("Upgrade")
                 if upgrade then return upgrade end
             end
@@ -180,6 +187,20 @@ return function(section, data)
         end
     end
     
+    -- Auto Lemon Depot Upgrade
+    local function doLemonDepotUpgrade()
+        local tycoonNum = getMyTycoonNumber()
+        if not tycoonNum then
+            print("[AutoLemonDepot] ❌ No tycoon found")
+            return
+        end
+        
+        pcall(function()
+            workspace["Tycoon" .. tycoonNum].Purchases["Lemon Depot"]["Lemon Depot"]["Lemon Depot"].Upgrade:InvokeServer(1)
+            print("[AutoLemonDepot] ✅ Lemon Depot Upgrade attempted")
+        end)
+    end
+    
     -- Main loops
     local function startAutoBuy()
         getgenv().AutoBuyTycoon = true
@@ -226,6 +247,21 @@ return function(section, data)
         print("[AutoLemonStand] Stopped auto-upgrading Lemon Stand")
     end
     
+    local function startAutoLemonDepot()
+        getgenv().AutoLemonDepot = true
+        print("[AutoLemonDepot] Started auto-upgrading Lemon Depot")
+        
+        while getgenv().AutoLemonDepot do
+            doLemonDepotUpgrade()
+            task.wait(0.1)
+        end
+    end
+    
+    local function stopAutoLemonDepot()
+        getgenv().AutoLemonDepot = false
+        print("[AutoLemonDepot] Stopped auto-upgrading Lemon Depot")
+    end
+    
     -- UI Elements
     elements:Toggle("Auto Buy Decor Items", section, setdata.autobuystycoon, function(v)
         getgenv().setconfig("autobuystycoon", v)
@@ -251,6 +287,15 @@ return function(section, data)
             startAutoLemonStandUpgrade()
         else
             stopAutoLemonStandUpgrade()
+        end
+    end)
+    
+    elements:Toggle("Auto Upgrade (Lemon Depot)", section, setdata.autolemondepot, function(v)
+        getgenv().setconfig("autolemondepot", v)
+        if v then
+            startAutoLemonDepot()
+        else
+            stopAutoLemonDepot()
         end
     end)
 end
