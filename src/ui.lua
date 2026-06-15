@@ -6,7 +6,7 @@ local httpservice = game:GetService("HttpService")
 local exservice = game:GetService("ExperienceService")
 local tweenservice = game:GetService("TweenService")
 
-local ui = import("rbxassetid://140441381053685")
+local ui = import("rbxassetid://103405534158694")
 
 ui.Parent = hui and hui() or coregui
 
