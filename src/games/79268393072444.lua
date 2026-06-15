@@ -1,9 +1,8 @@
--- Tycoon Auto Buyer for BrainrotPolice (Original)
+-- Tycoon Auto Buyer - Just Toggle
 
 return function(section, data)
     local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
     
-    -- Load saved data
     getgenv().AutoBuyTycoon = false
     
     local setdata = data[tostring(game.PlaceId)] or {}
@@ -16,14 +15,11 @@ return function(section, data)
     local workspace = game.Workspace
     local myName = LocalPlayer.Name
     
-    -- Find your tycoon number
     local function findMyTycoonNumber()
         for _, t in pairs(workspace:GetChildren()) do
             if t.Name and t.Name:match("Tycoon") and t:FindFirstChild("Owner") then
-                local ownerValue = tostring(t.Owner.Value)
-                if ownerValue == myName then
-                    local num = t.Name:match("(%d+)")
-                    return num
+                if tostring(t.Owner.Value) == myName then
+                    return t.Name:match("(%d+)")
                 end
             end
         end
@@ -32,19 +28,14 @@ return function(section, data)
     
     local tycoonNum = findMyTycoonNumber()
     
-    -- Auto Buy Decor Items
     local function startAutoBuyDecor()
         while getgenv().AutoBuyTycoon and wait(0.01) do
             pcall(function()
                 local decor = workspace:WaitForChild("Tycoon" .. tycoonNum):WaitForChild("Purchases"):WaitForChild("LemonDash"):WaitForChild("Buttons"):WaitForChild("Decor")
                 for _, item in pairs(decor:GetChildren()) do
-                    local enabled = item:GetAttribute("Enabled") == true
-                    local shown = item:GetAttribute("Shown") == true
-                    if enabled and shown then
+                    if item:GetAttribute("Enabled") == true and item:GetAttribute("Shown") == true then
                         local purchase = item:FindFirstChild("Purchase")
-                        if purchase then
-                            purchase:InvokeServer(false)
-                        end
+                        if purchase then purchase:InvokeServer(false) end
                     end
                     wait(0.01)
                 end
@@ -52,7 +43,6 @@ return function(section, data)
         end
     end
     
-    -- Auto Upgrade LemonDash
     local function startAutoUpgradeLemonDash()
         while getgenv().AutoBuyTycoon and wait(0.01) do
             pcall(function()
@@ -61,7 +51,6 @@ return function(section, data)
         end
     end
     
-    -- Auto Upgrade Lemon Stand
     local function startAutoUpgradeLemonStand()
         while getgenv().AutoBuyTycoon and wait(0.01) do
             pcall(function()
@@ -70,10 +59,8 @@ return function(section, data)
         end
     end
     
-    -- Start all loops
     local function startAutoBuy()
         getgenv().AutoBuyTycoon = true
-        print("[AutoBuy] Started all loops (0.01s delay)")
         spawn(startAutoBuyDecor)
         spawn(startAutoUpgradeLemonDash)
         spawn(startAutoUpgradeLemonStand)
@@ -81,16 +68,10 @@ return function(section, data)
     
     local function stopAutoBuy()
         getgenv().AutoBuyTycoon = false
-        print("[AutoBuy] Stopped all loops")
     end
     
-    -- UI Element
-    elements:Toggle("Auto Buy & Upgrade (Fast)", section, setdata.autobuystycoon, function(v)
+    elements:Toggle("Auto Buy & Upgrade", section, setdata.autobuystycoon, function(v)
         getgenv().setconfig("autobuystycoon", v)
-        if v then
-            startAutoBuy()
-        else
-            stopAutoBuy()
-        end
+        if v then startAutoBuy() else stopAutoBuy() end
     end)
 end
