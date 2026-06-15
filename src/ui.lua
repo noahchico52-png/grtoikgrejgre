@@ -6,7 +6,7 @@ local httpservice = game:GetService("HttpService")
 local exservice = game:GetService("ExperienceService")
 local tweenservice = game:GetService("TweenService")
 
-local ui = import("rbxassetid://140441381053685")
+local ui = import("rbxassetid://75281832304062")
 
 ui.Parent = hui and hui() or coregui
 
@@ -143,9 +143,9 @@ if not ok or #gamePath == 0 or gamePath == "404: Not Found" then
     local handledLocally = false
 
     if getgenv().FileScripts then
-        if isfile("MM2ScamPolice/"..tostring(game.PlaceId)..".lua") then
-            local gameModule = loadstring(readfile("MM2ScamPolice/"..tostring(game.PlaceId)..".lua"))()
-            gameModule(Sections.Game.Container, httpservice:JSONDecode(readfile("MM2ScamPolice/Config.json")))
+        if isfile("BrainrotPolice/"..tostring(game.PlaceId)..".lua") then
+            local gameModule = loadstring(readfile("BrainrotPolice/"..tostring(game.PlaceId)..".lua"))()
+            gameModule(Sections.Game.Container, httpservice:JSONDecode(readfile("BrainrotPolice/Config.json")))
             handledLocally = true
         end
     end
@@ -166,7 +166,7 @@ if not ok or #gamePath == 0 or gamePath == "404: Not Found" then
     end
 else
     local gameModule = loadstring(gamePath)()
-    gameModule(Sections.Game.Container, httpservice:JSONDecode(readfile("MM2ScamPolice/Config.json")))
+    gameModule(Sections.Game.Container, httpservice:JSONDecode(readfile("BrainrotPolice/Config.json")))
 end
 
 for _, g in ipairs(gameList) do
@@ -183,18 +183,18 @@ for sect, c in pairs(creditsList) do
     end
 end
 
-local dec1 = httpservice:JSONDecode(readfile("MM2ScamPolice/Config.json"))
+local dec1 = httpservice:JSONDecode(readfile("BrainrotPolice/Config.json"))
 
 elements:Toggle("Disable 3D Rendering", Sections.Settings.Container, dec1.settings.disable_3d_rendering, function(v)
-    local dec = httpservice:JSONDecode(readfile("MM2ScamPolice/Config.json"))
+    local dec = httpservice:JSONDecode(readfile("BrainrotPolice/Config.json"))
     dec.settings.disable_3d_rendering = v
-    writefile("MM2ScamPolice/Config.json", httpservice:JSONEncode(dec))
+    writefile("BrainrotPolice/Config.json", httpservice:JSONEncode(dec))
     game:GetService("RunService"):Set3dRenderingEnabled(not v)
 end)
 
 elements:Toggle("Auto Rejoin (when kicked)", Sections.Settings.Container, dec1.settings.auto_rejoin_on_kick, function(v)
-    local dec = httpservice:JSONDecode(readfile("MM2ScamPolice/Config.json"))
+    local dec = httpservice:JSONDecode(readfile("BrainrotPolice/Config.json"))
     dec.settings.auto_rejoin_on_kick = v
-    writefile("MM2ScamPolice/Config.json", httpservice:JSONEncode(dec))
+    writefile("BrainrotPolice/Config.json", httpservice:JSONEncode(dec))
     getgenv().autorjjjj = v
 end)
