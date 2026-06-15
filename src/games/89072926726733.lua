@@ -1,111 +1,139 @@
--- Cross road for brainrots
+-- Tycoon Auto Buyer for BrainrotPolice
 
 return function(section, data)
     local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
-
+    
+    -- Load saved data
+    getgenv().AutoBuyTycoon = false
+    getgenv().BuyDelay = 0.3
+    
     local setdata = data[tostring(game.PlaceId)] or {}
-    setdata.farmrots = setdata.farmrots or false
+    setdata.autobuystycoon = setdata.autobuystycoon or false
+    setdata.buydelay = setdata.buydelay or "0.3"
     data[tostring(game.PlaceId)] = setdata
     writefile("BrainrotPolice/Config.json", game:GetService("HttpService"):JSONEncode(data))
-
-    local plr = game:GetService("Players").LocalPlayer
-
-    getgenv().FarmBrainrots = false
-
-    elements:Toggle("Farm Brainrots", section, setdata.farmrots, function(bool)
-        setconfig("farmrots", bool)
-        if bool then
-            getgenv().FarmBrainrots = true
-
-            local char = plr.Character
-            local hrp = char.HumanoidRootPart
-
-            local function tp(pos)
-                char:MoveTo(pos)
-
-                repeat
-                    task.wait()
-                until (hrp.Position - pos).Magnitude < 10
-            end
-
-            local function waitForFolderChildren(folder, minimum, timeout)
-                local start = tick()
-                repeat
-                    if #folder:GetChildren() >= minimum then
-                        return true
-                    end
-
-                    task.wait(0.25)
-                until tick() - start > timeout
-
-                return false
-            end
-
-            while getgenv().FarmBrainrots do
-                tp(Vector3.new(345, 19, 2242))
-                local celestial = workspace.ItemSpawners:WaitForChild("Celestial")
-
-                waitForFolderChildren(celestial, 1, 5)
-
-                for _, br in pairs(celestial:GetChildren()) do
-                    if br.PrimaryPart then
-                        tp(br.PrimaryPart.Position)
-
-                        task.wait(0.5)
-
-                        local prompt = br.PrimaryPart:FindFirstChildOfClass("ProximityPrompt")
-
-                        if prompt then
-                            repeat fireproximityprompt(prompt) task.wait() until not br or br.Parent ~= celestial
-                        else
-                            continue
-                        end
-
-                        task.wait(0.5)
-
-                        tp(Vector3.new(343, 2, -15))
-                        task.wait(2)
-
-                        tp(Vector3.new(345, 19, 2242))
-                        task.wait(1)
-                    end
+    
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+    local workspace = game.Workspace
+    local myName = LocalPlayer.Name
+    
+    -- Find your tycoon
+    local function findMyTycoon()
+        for _, t in pairs(workspace:GetChildren()) do
+            if t.Name and t.Name:match("Tycoon") and t:FindFirstChild("Owner") then
+                local ownerValue = tostring(t.Owner.Value)
+                if ownerValue == myName then
+                    return t
                 end
-
-
-                tp(Vector3.new(353, 2, 2092))
-                local secret = workspace.ItemSpawners:WaitForChild("Secret")
-                waitForFolderChildren(secret, 1)
-
-                for _, br in pairs(secret:GetChildren()) do
-                    if br.PrimaryPart then
-                        tp(br.PrimaryPart.Position)
-
-                        local prompt = br.PrimaryPart:FindFirstChildOfClass("ProximityPrompt")
-
-                        if prompt then
-                            repeat fireproximityprompt(prompt) task.wait() until not br or br.Parent ~= secret
-                        else
-                            continue
-                        end
-
-                        task.wait(0.5)
-
-                        tp(Vector3.new(343, 2, -15))
-                        task.wait(2)
-
-                        tp(Vector3.new(353, 2, 2092))
-                        task.wait(1)
-                    end
-                end
-
-                task.wait(0.1)
             end
+        end
+        return nil
+    end
+    
+    -- Find Decor folder
+    local function findDecor(tycoon)
+        local purchases = tycoon:FindFirstChild("Purchases")
+        if purchases then
+            local lemonDash = purchases:FindFirstChild("LemonDash")
+            if lemonDash then
+                local buttons = lemonDash:FindFirstChild("Buttons")
+                if buttons then
+                    local decor = buttons:FindFirstChild("Decor")
+                    if decor then return decor end
+                end
+                local decor = lemonDash:FindFirstChild("Decor")
+                if decor then return decor end
+            end
+        end
+        return nil
+    end
+    
+    -- Purchase items
+    local function purchaseItems()
+        local myTycoon = findMyTycoon()
+        if not myTycoon then
+            print("[AutoBuy] ❌ No tycoon found for: " .. myName)
+            return
+        end
+        
+        local decor = findDecor(myTycoon)
+        if not decor then
+            print("[AutoBuy] ❌ Decor folder not found")
+            return
+        end
+        
+        print("[AutoBuy] 🔍 Checking items in " .. myTycoon.Name)
+        
+        for _, item in pairs(decor:GetChildren()) do
+            if not getgenv().AutoBuyTycoon then break end
+            
+            local enabled = item:GetAttribute("Enabled") == true
+            local shown = item:GetAttribute("Shown") == true
+            
+            if enabled and shown then
+                local purchaseEvent = item:FindFirstChild("Purchase")
+                if purchaseEvent then
+                    local success = pcall(function()
+                        purchaseEvent:InvokeServer(false)
+                    end)
+                    
+                    if success then
+                        print("[AutoBuy] ✅ Purchased: " .. item.Name)
+                    else
+                        print("[AutoBuy] ❌ Cannot afford: " .. item.Name)
+                    end
+                    task.wait(getgenv().BuyDelay)
+                end
+            end
+        end
+    end
+    
+    -- Auto buy loop
+    local function startAutoBuy()
+        getgenv().AutoBuyTycoon = true
+        print("[AutoBuy] Started auto-buying")
+        
+        while getgenv().AutoBuyTycoon do
+            purchaseItems()
+            task.wait(5) -- Wait 5 seconds before checking again
+        end
+    end
+    
+    local function stopAutoBuy()
+        getgenv().AutoBuyTycoon = false
+        print("[AutoBuy] Stopped auto-buying")
+    end
+    
+    -- UI Elements
+    elements:Toggle("Auto Buy Tycoon Items", section, setdata.autobuystycoon, function(v)
+        getgenv().setconfig("autobuystycoon", v)
+        if v then
+            startAutoBuy()
         else
-            getgenv().FarmBrainrots = false
+            stopAutoBuy()
         end
     end)
-
-    elements:Button("Remove Cars", section, function()
-        workspace.CarSpawn:Destroy()
+    
+    elements:Textbox("Buy Delay (seconds)", section, setdata.buydelay, function(v)
+        getgenv().setconfig("buydelay", v)
+        getgenv().BuyDelay = tonumber(v) or 0.3
+    end)
+    
+    elements:Button("Buy Now (One Time)", section, function()
+        purchaseItems()
+    end)
+    
+    elements:Button("Find My Tycoon", section, function()
+        local tycoon = findMyTycoon()
+        if tycoon then
+            print("[AutoBuy] ✅ You own: " .. tycoon.Name)
+            local decor = findDecor(tycoon)
+            if decor then
+                print("[AutoBuy] 📁 Decor found with " .. #decor:GetChildren() .. " items")
+            end
+        else
+            print("[AutoBuy] ❌ No tycoon found for: " .. myName)
+        end
     end)
 end
