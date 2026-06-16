@@ -1,4 +1,4 @@
--- Tycoon Auto Buyer (Multiple Upgrade paths + Lemon Depot)
+-- Tycoon Auto Buyer (Multiple Upgrade paths + Lemon Depot + Multiplier)
 
 return function(section, data)
     local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
@@ -142,6 +142,39 @@ return function(section, data)
         end
     end
     
+    -- Auto Lemon Depot Multiplier Button
+    local function doLemonDepotMultiplier()
+        local tycoonNum = getMyTycoonNumber()
+        if not tycoonNum then
+            print("[AutoMultiplier] ❌ No tycoon found")
+            return
+        end
+        
+        local success = pcall(function()
+            local multiplier = workspace["Tycoon" .. tycoonNum].Purchases["Lemon Depot"].Buttons.Multiplier
+            local clickDetector = multiplier:FindFirstChild("ClickDetector")
+            if clickDetector then
+                local character = LocalPlayer.Character
+                local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+                if rootPart then
+                    clickDetector:FireClick(rootPart)
+                    print("[AutoMultiplier] ✅ Lemon Depot Multiplier clicked!")
+                end
+            else
+                -- Try invoking if it's a RemoteEvent
+                local purchaseEvent = multiplier:FindFirstChild("Purchase")
+                if purchaseEvent then
+                    purchaseEvent:InvokeServer(false)
+                    print("[AutoMultiplier] ✅ Lemon Depot Multiplier purchased!")
+                end
+            end
+        end)
+        
+        if not success then
+            print("[AutoMultiplier] ❌ Could not click Multiplier")
+        end
+    end
+    
     -- Auto Upgrade (LemonDash)
     local function doUpgrade()
         local myTycoon = findMyTycoon()
@@ -216,6 +249,7 @@ return function(section, data)
         
         while getgenv().AutoBuyTycoon do
             purchaseItems()
+            doLemonDepotMultiplier() -- Also click multiplier
             task.wait(0.1)
         end
     end
@@ -271,7 +305,7 @@ return function(section, data)
     end
     
     -- UI Elements
-    elements:Toggle("Auto Buy Decor Items", section, setdata.autobuystycoon, function(v)
+    elements:Toggle("Auto Buy Decor Items + Multiplier", section, setdata.autobuystycoon, function(v)
         getgenv().setconfig("autobuystycoon", v)
         if v then
             startAutoBuy()
