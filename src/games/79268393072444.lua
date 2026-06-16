@@ -1,4 +1,4 @@
--- Tycoon Auto Buyer (Multiple Upgrade paths + Lemon Depot + Multiplier)
+-- Lemon tycoon Script made by Ai fix by ai ui by skid by @what25 on discordq
 
 return function(section, data)
     local elements = loadstring(game:HttpGet(getgitpath("src").."elements.lua"))()
@@ -22,7 +22,6 @@ return function(section, data)
     local workspace = game.Workspace
     local myName = LocalPlayer.Name
     
-    -- Find your tycoon number
     local function getMyTycoonNumber()
         for _, t in pairs(workspace:GetChildren()) do
             if t.Name and t.Name:match("Tycoon") and t:FindFirstChild("Owner") then
@@ -34,7 +33,6 @@ return function(section, data)
         return nil
     end
     
-    -- Find your tycoon
     local function findMyTycoon()
         for _, t in pairs(workspace:GetChildren()) do
             if t.Name and t.Name:match("Tycoon") and t:FindFirstChild("Owner") then
@@ -65,7 +63,6 @@ return function(section, data)
         return nil
     end
     
-    -- Find Upgrade path (LemonDash chain)
     local function findUpgrade(tycoon)
         local purchases = tycoon:FindFirstChild("Purchases")
         if purchases then
@@ -86,7 +83,6 @@ return function(section, data)
         return nil
     end
     
-    -- Find Lemon Stand Upgrade
     local function findLemonStandUpgrade(tycoon)
         local purchases = tycoon:FindFirstChild("Purchases")
         if purchases then
@@ -142,7 +138,6 @@ return function(section, data)
         end
     end
     
-    -- Auto Lemon Depot Multiplier Button
     local function doLemonDepotMultiplier()
         local tycoonNum = getMyTycoonNumber()
         if not tycoonNum then
@@ -175,7 +170,6 @@ return function(section, data)
         end
     end
     
-    -- Auto Upgrade (LemonDash)
     local function doUpgrade()
         local myTycoon = findMyTycoon()
         if not myTycoon then
@@ -199,7 +193,6 @@ return function(section, data)
         end
     end
     
-    -- Auto Lemon Stand Upgrade
     local function doLemonStandUpgrade()
         local myTycoon = findMyTycoon()
         if not myTycoon then
@@ -223,7 +216,6 @@ return function(section, data)
         end
     end
     
-    -- Auto Lemon Depot Upgrade
     local function doLemonDepotUpgrade()
         local tycoonNum = getMyTycoonNumber()
         if not tycoonNum then
@@ -242,14 +234,13 @@ return function(section, data)
         end
     end
     
-    -- Main loops
     local function startAutoBuy()
         getgenv().AutoBuyTycoon = true
         print("[AutoBuy] Started auto-buying")
         
         while getgenv().AutoBuyTycoon do
             purchaseItems()
-            doLemonDepotMultiplier() -- Also click multiplier
+            doLemonDepotMultiplier() 
             task.wait(0.1)
         end
     end
@@ -304,7 +295,6 @@ return function(section, data)
         print("[AutoLemonDepot] Stopped auto-upgrading Lemon Depot")
     end
     
-    -- UI Elements
     elements:Toggle("Auto Buy Decor Items + Multiplier", section, setdata.autobuystycoon, function(v)
         getgenv().setconfig("autobuystycoon", v)
         if v then
