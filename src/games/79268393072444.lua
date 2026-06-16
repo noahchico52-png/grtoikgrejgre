@@ -187,7 +187,7 @@ return function(section, data)
         
         while getgenv().AutoBuyTycoon do
             purchaseItems()
-            task.wait(5)
+            task.wait(0.1)
         end
     end
     
@@ -202,7 +202,7 @@ return function(section, data)
         
         while getgenv().AutoUpgrade do
             doUpgrade()
-            task.wait(10)
+            task.wait(0.1)
         end
     end
     
@@ -217,7 +217,7 @@ return function(section, data)
         
         while getgenv().AutoLemonStandUpgrade do
             doLemonStandUpgrade()
-            task.wait(10)
+            task.wait(0.1)
         end
     end
     
