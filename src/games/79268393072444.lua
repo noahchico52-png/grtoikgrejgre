@@ -22,6 +22,7 @@ return function(section, data)
     local workspace = game.Workspace
     local myName = LocalPlayer.Name
     
+    
     local function getMyTycoonNumber()
         for _, t in pairs(workspace:GetChildren()) do
             if t.Name and t.Name:match("Tycoon") and t:FindFirstChild("Owner") then
@@ -45,7 +46,6 @@ return function(section, data)
         return nil
     end
     
-    -- Find Decor folder
     local function findDecor(tycoon)
         local purchases = tycoon:FindFirstChild("Purchases")
         if purchases then
@@ -103,7 +103,7 @@ return function(section, data)
         return nil
     end
     
-    -- Purchase Decor items
+        -- setup 1 - 4
     local function purchaseItems()
         local myTycoon = findMyTycoon()
         if not myTycoon then
@@ -111,6 +111,7 @@ return function(section, data)
             return
         end
         
+        -- Check regular Decor folder
         local decor = findDecor(myTycoon)
         if decor then
             for _, item in pairs(decor:GetChildren()) do
@@ -136,40 +137,43 @@ return function(section, data)
                 end
             end
         end
-    end
-    
-    local function doLemonDepotMultiplier()
-        local tycoonNum = getMyTycoonNumber()
-        if not tycoonNum then
-            print("[AutoMultiplier] ❌ No tycoon found")
-            return
-        end
         
-        local success = pcall(function()
-            local multiplier = workspace["Tycoon" .. tycoonNum].Purchases["Lemon Depot"].Buttons.Multiplier
-            local clickDetector = multiplier:FindFirstChild("ClickDetector")
-            if clickDetector then
-                local character = LocalPlayer.Character
-                local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-                if rootPart then
-                    clickDetector:FireClick(rootPart)
-                    print("[AutoMultiplier] ✅ Lemon Depot Multiplier clicked!")
-                end
-            else
-                -- Try invoking if it's a RemoteEvent
-                local purchaseEvent = multiplier:FindFirstChild("Purchase")
-                if purchaseEvent then
-                    purchaseEvent:InvokeServer(false)
-                    print("[AutoMultiplier] ✅ Lemon Depot Multiplier purchased!")
+        -- setup 2 - 4 (Multiplier as Decor)
+        local tycoonNum = getMyTycoonNumber()
+        if tycoonNum then
+            local multiplier = workspace:FindFirstChild("Tycoon" .. tycoonNum) and
+                              workspace["Tycoon" .. tycoonNum]:FindFirstChild("Purchases") and
+                              workspace["Tycoon" .. tycoonNum].Purchases:FindFirstChild("Lemon Depot") and
+                              workspace["Tycoon" .. tycoonNum].Purchases["Lemon Depot"]:FindFirstChild("Buttons") and
+                              workspace["Tycoon" .. tycoonNum].Purchases["Lemon Depot"].Buttons:FindFirstChild("Multiplier")
+            
+            if multiplier then
+                local enabled = multiplier:GetAttribute("Enabled") == true
+                local shown = multiplier:GetAttribute("Shown") == true
+                
+                if enabled and shown then
+                    local biggerFleet = multiplier:FindFirstChild("Bigger Fleet")
+                    if biggerFleet then
+                        local purchaseEvent = biggerFleet:FindFirstChild("Purchase")
+                        if purchaseEvent then
+                            local success = pcall(function()
+                                purchaseEvent:InvokeServer(false)
+                            end)
+                            
+                            if success then
+                                print("[AutoBuy] ✅ Purchased: Bigger Fleet (Multiplier)")
+                            else
+                                print("[AutoBuy] ❌ Cannot afford: Bigger Fleet")
+                            end
+                            task.wait(0.3)
+                        end
+                    end
                 end
             end
-        end)
-        
-        if not success then
-            print("[AutoMultiplier] ❌ Could not click Multiplier")
         end
     end
     
+    -- setup 1 - 4 (LemonDash chain)
     local function doUpgrade()
         local myTycoon = findMyTycoon()
         if not myTycoon then
@@ -193,6 +197,7 @@ return function(section, data)
         end
     end
     
+    -- setup 3 - 4 (Lemon Stand Upgrade)
     local function doLemonStandUpgrade()
         local myTycoon = findMyTycoon()
         if not myTycoon then
@@ -216,6 +221,7 @@ return function(section, data)
         end
     end
     
+    --  setup 4 - 4 (Lemon Depot Upgrade)
     local function doLemonDepotUpgrade()
         local tycoonNum = getMyTycoonNumber()
         if not tycoonNum then
@@ -234,13 +240,13 @@ return function(section, data)
         end
     end
     
+    -- setup 4 - 5 ???????????????????????? (Lemon Depot Upgrade path might have more levels, this is just the first one)
     local function startAutoBuy()
         getgenv().AutoBuyTycoon = true
-        print("[AutoBuy] Started auto-buying")
+        print("[AutoBuy] Started auto-buying (Decor + Multiplier)")
         
         while getgenv().AutoBuyTycoon do
             purchaseItems()
-            doLemonDepotMultiplier() 
             task.wait(0.1)
         end
     end
@@ -295,7 +301,7 @@ return function(section, data)
         print("[AutoLemonDepot] Stopped auto-upgrading Lemon Depot")
     end
     
-    elements:Toggle("Auto Buy Decor Items + Multiplier", section, setdata.autobuystycoon, function(v)
+    elements:Toggle("Auto Buy Decor (Incl. Multiplier)", section, setdata.autobuystycoon, function(v)
         getgenv().setconfig("autobuystycoon", v)
         if v then
             startAutoBuy()
